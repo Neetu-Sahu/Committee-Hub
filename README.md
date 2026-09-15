@@ -1,5 +1,3 @@
-# HubCommittee
-
 # 🎓 CommitteeHub — Academic Committee Management Portal
 
 A centralized, full-stack web platform designed to streamline the management of college committees, clubs, and student organizations.
