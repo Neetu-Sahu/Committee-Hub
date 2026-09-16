@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 export default function CreateEvent() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const preselectedCommitteeId = searchParams.get("committee") || searchParams.get("committeeId");
+
   const [committees, setCommittees] = useState([]);
   const [form, setForm] = useState({
     committeeId: "",
@@ -16,25 +20,25 @@ export default function CreateEvent() {
   });
   const [status, setStatus] = useState("");
 
-  const isAdmin = user && (user.role === "admin" || user.role === "faculty_advisor");
-
   useEffect(() => {
     api.get("/committees").then((res) => {
-      let list = res.data;
-      if (!isAdmin) {
-        const commId = String(user.assignedCommittee?._id || user.assignedCommittee || user.headOf);
-        list = res.data.filter(
-          (c) =>
-            String(c._id) === commId ||
-            String(c.chairperson?._id || c.chairperson) === String(user._id) ||
-            String(c.head?._id || c.head) === String(user._id) ||
-            (c.coordinators || []).some((coord) => String(coord._id || coord) === String(user._id))
-        );
-      }
+      const commId = String(user.assignedCommittee?._id || user.assignedCommittee || user.headOf);
+      const list = res.data.filter(
+        (c) =>
+          String(c._id) === commId ||
+          String(c._id) === preselectedCommitteeId ||
+          String(c.chairperson?._id || c.chairperson) === String(user._id) ||
+          String(c.head?._id || c.head) === String(user._id) ||
+          (c.coordinators || []).some((coord) => String(coord._id || coord) === String(user._id))
+      );
       setCommittees(list);
-      if (list.length > 0) setForm((f) => ({ ...f, committeeId: list[0]._id }));
+      const initialId =
+        preselectedCommitteeId && list.some((c) => String(c._id) === preselectedCommitteeId)
+          ? preselectedCommitteeId
+          : list[0]?._id || "";
+      setForm((f) => ({ ...f, committeeId: initialId }));
     });
-  }, [user, isAdmin]);
+  }, [user, preselectedCommitteeId]);
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
@@ -60,14 +64,23 @@ export default function CreateEvent() {
 
   return (
     <div className="page">
-      <h1>Create & Schedule an Event</h1>
+      <div className="page-header">
+        <div>
+          <h1>Create & Schedule Committee Event</h1>
+          <p className="subtitle">
+            Organize workshops, hackathons, seminars, and club activities for college students.
+          </p>
+        </div>
+      </div>
+
       {status && <div className="hint">{status}</div>}
+
       <form className="form-card" onSubmit={handleSubmit}>
         <label>Committee</label>
         <select value={form.committeeId} onChange={update("committeeId")} required>
           {committees.map((c) => (
             <option key={c._id} value={c._id}>
-              {c.name}
+              {c.name} ({c.category})
             </option>
           ))}
         </select>
@@ -99,7 +112,7 @@ export default function CreateEvent() {
         <div className="form-row">
           <div>
             <label>Date & Time</label>
-            <input type="date" value={form.date} onChange={update("date")} required />
+            <input type="datetime-local" value={form.date} onChange={update("date")} required />
           </div>
           <div>
             <label>Venue / Location</label>
